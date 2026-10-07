@@ -1,0 +1,25 @@
+node_modules/
+dist/
+edits/
+public/videos/
+*.MOV
+*.mp4
+*.HEIC
+*.fcpxml
+*.h
+.cache/
+.vite/
+.env
+.env.*
+*.log
+.DS_Store
+
+# scripts locales
+serve.cmd
+serve_nocache.py
+test_range.py
+test_index.html
+concat_masters.py
+deploy_to_vercel.sh
+start_all.cmd
+deploy_to_vercel.sh

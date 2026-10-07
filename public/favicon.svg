@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9b873"/>
+      <stop offset="1" stop-color="#8a4a18"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#1b1410"/>
+  <circle cx="32" cy="32" r="28" fill="none" stroke="url(#g)" stroke-width="2"/>
+  <path d="M32 18 q4 -10 7 -12 q-2 -3 -5 -3 q-4 0 -5 4 q-3 -4 -7 -2 q3 -2 5 -6 q-5 1 -7 6 q-3 -3 -7 -1 q4 0 6 4 q-4 0 -6 4 q5 -2 10 1 q5 -3 9 -5 z" fill="url(#g)" transform="translate(0,8)"/>
+  <path d="M14 48 Q32 32 50 48" fill="none" stroke="url(#g)" stroke-width="2"/>
+  <text x="32" y="56" text-anchor="middle" fill="url(#g)" font-family="Arial Black" font-size="6" letter-spacing="1">ESTACIÓN</text>
+</svg>

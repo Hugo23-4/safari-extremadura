@@ -1,0 +1,17 @@
+{
+  "name": "safari-extremadura",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Safari extremeño estilo videojuego — Three.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.2"
+  }
+}
