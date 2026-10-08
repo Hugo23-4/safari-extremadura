@@ -2,6 +2,7 @@
 // ui.js — Minimapa, brújula, secciones, intro, HUD coche, panel guía
 // ============================================================
 import * as THREE from 'three';
+import { toggleAmbient } from './sound.js';
 
 const SPECIES_COLORS = {
   ciervo: '#a36b3a',
@@ -135,6 +136,8 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   const crosshairLabel = document.getElementById('crosshairLabel');
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
+  // Solo animales: contra toda la escena (terreno + 600 encinas) costaba ~33 ms por frame
+  const animalMeshes = fauna.list.map(a => a.mesh);
 
   function updateCrosshairAndTooltip() {
     if (cameraCtrl.state.mode === 'car') {
@@ -144,7 +147,7 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
     if (crosshairEl) crosshairEl.style.opacity = '1';
     ndc.set(0, 0);
     raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(scene.children, true);
+    const hits = raycaster.intersectObjects(animalMeshes, true);
     let foundAnimal = null;
     for (const h of hits) {
       let obj = h.object;
@@ -157,7 +160,7 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
       if (crosshairEl) crosshairEl.classList.add('active');
       if (crosshairDot) crosshairDot.setAttribute('fill', col);
       if (crosshairLabel) {
-        const dist = Math.round(foundAnimal.parent.position.distanceTo(camera.position));
+        const dist = Math.round(foundAnimal.position.distanceTo(camera.position));
         crosshairLabel.textContent = `${SPECIES_NAMES[sp]} · ${dist}m`;
         crosshairLabel.style.color = col;
         crosshairLabel.style.borderColor = col;
@@ -193,32 +196,27 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   const fillEl    = document.getElementById('loadFill');
   const statusEl  = document.getElementById('loadStatus');
 
-  const STATUSES = [
-    'Inicializando dehesa…', 'Generando Sierra del Torozón…',
-    'Plantando 600 encinas…', 'Construyendo cortijo extremeño…',
-    'Repartiendo fauna…', 'Aparcando el 4×4…',
-    'Cargando mapa de Manolo…', 'Listos para la partida'
-  ];
-
-  async function runLoading() {
-    for (let i = 0; i < STATUSES.length; i++) {
-      fillEl.value = STATUSES[i];
-      fillEl.style.width = ((i + 1) / STATUSES.length * 100) + '%';
-      statusEl.textContent = STATUSES[i];
-      await new Promise(r => setTimeout(r, 280));
-    }
-    await new Promise(r => setTimeout(r, 350));
+  // No-op si ya se saltó: si no, el final de runLoading volvía a abrir el intro encima de la app
+  function skipLoading() {
+    if (loadingEl.classList.contains('hidden')) return;
     loadingEl.classList.add('hidden');
     introEl.classList.remove('hidden');
+  }
+
+  // Las etapas reales de carga las narra main.js; aquí solo se completa la barra
+  async function runLoading() {
+    fillEl.style.width = '100%';
+    statusEl.textContent = 'Listos para la partida';
+    await new Promise(r => setTimeout(r, 500));
+    skipLoading();
   }
   runLoading();
 
   document.getElementById('introSkip')?.addEventListener('click', startApp);
   document.getElementById('introStart')?.addEventListener('click', startApp);
-  loadingEl.addEventListener('click', () => {
-    loadingEl.classList.add('hidden');
-    introEl.classList.remove('hidden');
-  });
+  loadingEl.addEventListener('click', skipLoading);
+  // "Pulsa cualquier tecla para omitir" (antes solo funcionaba el click)
+  window.addEventListener('keydown', skipLoading);
 
   function startApp() {
     introEl.classList.add('hidden');
@@ -231,6 +229,8 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   // ============ SECTIONS ============
   const sidenav = document.getElementById('sidenav');
   function showSection(name) {
+    // Con una sección abierta el CSS oculta los controles flotantes (no tapan el formulario)
+    appEl.classList.toggle('has-section', name !== 'hero');
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     if (name !== 'hero') {
       const el = document.getElementById('sec-' + name);
@@ -259,7 +259,7 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
         const newTarget = best.position.clone();
         newTarget.y += 2;
         cameraCtrl.focusOn(newTarget, 20);
-        toast('ESPÉCIE: ' + sp.toUpperCase(), 'focus cámara');
+        toast('ESPECIE: ' + sp.toUpperCase(), 'focus cámara');
       }
       document.querySelectorAll('.spe').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -267,6 +267,8 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   });
 
   window.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (e.code.startsWith('Digit')) {
       const k = e.code.replace('Digit', '');
       document.querySelector(`.spe[data-key="${k}"]`)?.click();
@@ -278,14 +280,15 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
     toast('VISTA ORBITAL', 'modo cinematográfico');
   });
 
-  // Sound (imported from sound module inline because ui is large already)
-  document.getElementById('actSound')?.addEventListener('click', async (e) => {
-    const audio = document.getElementById('ambient');
+  // Sonido ambiente sintetizado (sound.js: viento, grillos, pájaros, brama)
+  document.getElementById('actSound')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
     try {
-      if (audio.paused) { await audio.play(); e.currentTarget.classList.add('on'); toast('♪ SONIDO ON'); }
-      else { audio.pause(); e.currentTarget.classList.remove('on'); toast('♪ SONIDO OFF'); }
+      const on = toggleAmbient();
+      btn.classList.toggle('on', on);
+      toast(on ? '♪ SONIDO ON' : '♪ SONIDO OFF');
     } catch (err) {
-      toast('Sonido no disponible', 'pulsa cualquier tecla');
+      toast('Sonido no disponible', 'tu navegador no soporta Web Audio');
     }
   });
 
@@ -335,37 +338,78 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
     guidePanel.classList.add('hidden');
   });
 
-  // Función para añadir mensaje al chat
+  // Función para añadir mensaje al chat (textContent: el texto del usuario no se interpreta como HTML)
   function addGuideMsg(text, who = 'user') {
     const div = document.createElement('div');
     div.className = `guide__msg guide__msg--${who}`;
-    div.innerHTML = text;
+    div.textContent = text;
     guideChat.appendChild(div);
     guideChat.scrollTop = guideChat.scrollHeight;
   }
 
-  // Cuando Hugo pregunta, se notifica para que YO le responda por chat
+  // Respuestas de Manolo: locales, por palabras clave (no hay backend)
+  const SPECIES_FACTS = {
+    ciervo: 'El rey de la dehesa. Los machos tiran las cuernas cada primavera y les vuelven a crecer.',
+    jabali: 'Va en piara y hoza el suelo buscando bellotas y raíces.',
+    gamo:   'Se distingue por las manchas claras y la cornamenta en forma de pala.',
+    corzo:  'Es el cérvido más pequeño de la península. Cuando se asusta, ladra.',
+    bufalo: 'Le encanta revolcarse en el barro de la charca para quitarse el calor.',
+    zorro:  'Listo y oportunista: come de todo, desde conejos hasta fruta.',
+    liebre: 'Si la asustas, sale disparada en zigzag.',
+    lince:  'Se le reconoce por los pinceles negros de las orejas y las patillas. Verlo es pura suerte.',
+    buitre: 'Planea aprovechando las corrientes de aire caliente, casi sin batir las alas.'
+  };
+
+  function describeAnimalAt(side) {
+    const fwd = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+    const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+    const rel = new THREE.Vector3();
+    let best = null, bd = 150;
+    for (const a of fauna.list) {
+      rel.copy(a.position).sub(camera.position).setY(0);
+      const d = rel.length();
+      if (d >= bd || d < 1) continue;
+      rel.divideScalar(d);
+      const ahead = rel.dot(fwd), lateral = rel.dot(right);
+      const ok = side === 'right' ? lateral > 0.2
+        : side === 'left' ? lateral < -0.2
+        : ahead > 0.5;
+      if (ok) { bd = d; best = a; }
+    }
+    if (!best) return 'Ahora mismo no veo nada por ese lado. Paciencia, que en la dehesa todo aparece.';
+    const article = best.species === 'liebre' ? 'una' : 'un';
+    return `Eso es ${article} ${SPECIES_NAMES[best.species].toLowerCase()}, a unos ${Math.round(bd)} metros. ${SPECIES_FACTS[best.species]}`;
+  }
+
+  function guideAnswer(question) {
+    const q = question.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    if (/derecha/.test(q)) return describeAnimalAt('right');
+    if (/izquierda/.test(q)) return describeAnimalAt('left');
+    if (/(que|eso).*(veo|es eso)|delante|enfrente/.test(q)) return describeAnimalAt('ahead');
+    if (/epoca|cuando|berrea/.test(q)) return 'La berrea va de mediados de septiembre a mediados de octubre. Lo mejor es salir al amanecer o al atardecer.';
+    if (/brama|bramido/.test(q)) return 'Es el macho en celo: brama para atraer a las hembras y avisar a los rivales de que esa manada es suya.';
+    if (/lince/.test(q)) return 'Haberlos, haylos: en Extremadura se reintrodujo en 2014, en el valle del Matachel. Por aquí es muy raro verlo, así que si lo ves, apúntalo.';
+    if (/dehesa/.test(q)) return 'Es un bosque aclarado de encinas y alcornoques con pasto debajo, mantenido por el ganado y la gente del campo. El paisaje típico de Extremadura.';
+    if (/cortijo|historia|casa/.test(q)) return 'El cortijo es la casa de labor de la finca: muros encalados, corrales para el ganado y la sombra de las encinas alrededor.';
+    if (/precio|cuesta|reserv|plaza|fecha/.test(q)) {
+      setTimeout(() => showSection('reserva'), 1200);
+      return 'Las salidas y los precios los tienes en Misiones. Te abro el formulario de reserva y te contestamos en 24 horas.';
+    }
+    for (const sp of Object.keys(SPECIES_FACTS)) {
+      if (q.includes(sp) || (sp === 'jabali' && q.includes('jabal')) || (sp === 'bufalo' && q.includes('bufal'))) {
+        return SPECIES_FACTS[sp];
+      }
+    }
+    return 'Eso te lo cuento en persona durante el safari. Si quieres venir, abre la sección de reservas.';
+  }
+
   guideForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const q = guideInput.value.trim();
     if (!q) return;
     addGuideMsg(q, 'user');
     guideInput.value = '';
-    // Notificación al exterior para que el asistente responda
-    if (typeof window !== 'undefined' && window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('guide-question', {
-        detail: {
-          question: q,
-          carMode: cameraCtrl.state.mode === 'car',
-          carPathT: cameraCtrl.state.carPathT,
-          carKm: cameraCtrl.state.carDistance
-        }
-      }));
-    }
-    // Mensaje de espera
-    setTimeout(() => {
-      addGuideMsg('<i>Manolo está pensando… te contesto arriba en el chat principal.</i>', 'bot');
-    }, 400);
+    setTimeout(() => addGuideMsg(guideAnswer(q), 'bot'), 450);
   });
 
   // Sugerencias

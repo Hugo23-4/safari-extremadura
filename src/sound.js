@@ -5,6 +5,10 @@
 let ctx = null;
 let masterGain = null;
 let started = false;
+let windBuf = null;
+// Cada arranque abre una "generación": los bucles de una generación anterior
+// se paran solos, así apagar/encender no duplica grillos ni pájaros.
+let generation = 0;
 
 function ensureCtx() {
   if (ctx) return;
@@ -18,16 +22,11 @@ export function isPlaying() {
   return started;
 }
 
-export function startAmbient() {
-  if (started) return;
-  ensureCtx();
-  if (ctx.state === 'suspended') ctx.resume();
-  started = true;
-
-  // ============== VIENTO ==============
+// Viento continuo: se crea una sola vez y queda en pausa con el contexto suspendido
+function buildWind() {
   // Brown noise + low-pass + LFO on filter freq
   const bufSize = ctx.sampleRate * 4;
-  const windBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  windBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
   const data = windBuf.getChannelData(0);
   let lastOut = 0;
   for (let i = 0; i < bufSize; i++) {
@@ -62,18 +61,23 @@ export function startAmbient() {
   windAmpLfoGain.gain.value = 0.2;
   windAmpLfo.connect(windAmpLfoGain).connect(windGain.gain);
   windAmpLfo.start();
+}
+
+function startLoops(gen) {
+  const alive = () => started && gen === generation;
 
   // ============== GRILLOS ==============
   // Pulsos agudos ~4kHz a alta frecuencia
   function cricket() {
+    if (!alive()) return;
     const now = ctx.currentTime;
     const o = ctx.createOscillator();
     o.type = 'square';
     o.frequency.value = 3800 + Math.random() * 600;
     const g = ctx.createGain();
-      g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.04, now + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.04, now + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
     filter.frequency.value = 4000;
@@ -87,6 +91,7 @@ export function startAmbient() {
 
   // ============== PÁJAROS ==============
   function bird() {
+    if (!alive()) return;
     const now = ctx.currentTime;
     const o = ctx.createOscillator();
     o.type = 'sine';
@@ -95,9 +100,9 @@ export function startAmbient() {
     o.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.1);
     o.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.2);
     const g = ctx.createGain();
-      g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.025, now + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.025, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
     o.connect(g).connect(masterGain);
     o.start(now);
     o.stop(now + 0.3);
@@ -107,7 +112,7 @@ export function startAmbient() {
 
   // ============== RÁFAGA DE VIENTO (más intenso) ==============
   function gust() {
-    if (!started) return;
+    if (!alive()) return;
     const now = ctx.currentTime;
     const o = ctx.createBufferSource();
     o.buffer = windBuf;
@@ -116,26 +121,42 @@ export function startAmbient() {
     f.type = 'lowpass';
     f.frequency.value = 700;
     const g = ctx.createGain();
-      g.gain.setValueAtTime(0.1, now);
-      g.gain.linearRampToValueAtTime(0.5, now + 1);
-      g.gain.linearRampToValueAtTime(0.1, now + 3);
+    g.gain.setValueAtTime(0.1, now);
+    g.gain.linearRampToValueAtTime(0.5, now + 1);
+    g.gain.linearRampToValueAtTime(0.1, now + 3);
     o.connect(f).connect(g).connect(masterGain);
     o.start(now);
     o.stop(now + 3.1);
     setTimeout(gust, 8000 + Math.random() * 12000);
   }
   gust();
+}
+
+export function startAmbient() {
+  if (started) return;
+  ensureCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  started = true;
+  if (!windBuf) buildWind();
+  startLoops(++generation);
 
   // Fade in
-  masterGain.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 1.5);
+  const now = ctx.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+  masterGain.gain.linearRampToValueAtTime(0.6, now + 1.5);
 }
 
 export function stopAmbient() {
   if (!started || !ctx) return;
   started = false;
-  masterGain.gain.linearRampToValueAtTime(0.0, ctx.currentTime + 0.5);
+  const now = ctx.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+  masterGain.gain.linearRampToValueAtTime(0.0, now + 0.5);
   setTimeout(() => {
-    if (ctx && ctx.state === 'running') ctx.suspend();
+    // Si lo han vuelto a encender durante el fade, no suspender
+    if (!started && ctx.state === 'running') ctx.suspend();
   }, 600);
 }
 
@@ -147,14 +168,6 @@ export function toggleAmbient() {
 
 // ============ BRAMA DEL CIERVO (evento) ============
 // Escucha el evento 'deer-brama' emitido por el macho alfa y reproduce un sonido grave
-let audioCtx = null;
-
-function getCtx() {
-  if (audioCtx) return audioCtx;
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
-}
-
 function startListening() {
   if (typeof window === 'undefined') return;
   window.addEventListener('deer-brama', (e) => {
@@ -165,8 +178,7 @@ function startListening() {
 }
 
 function playBrama(volume = 0.7) {
-  const ctx = getCtx();
-  if (ctx.state === 'suspended') ctx.resume();
+  // Mismo contexto que masterGain: conectar nodos de contextos distintos lanza InvalidAccessError
   const now = ctx.currentTime;
 
   // Brama: tono grave con modulación y formantes

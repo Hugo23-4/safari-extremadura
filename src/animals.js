@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { SimplexNoise } from './noise.js';
 import { PALETTE } from './world.js';
+import { shareMaterials, mergeStaticMeshes } from './optimize.js';
 
 // ============== COLORES ==============
 const c = (hex) => new THREE.Color(hex);
@@ -898,23 +899,28 @@ export function makeHare(scale = 1) {
     g.add(earIn);
   }
 
+  // Patas: la animación del update() espera Mesh con basePos/phase (como makeLeg)
+  const legs = [];
   // Patas traseras grandes (característica liebre)
   for (const s of [-1, 1]) {
     const legBack = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), mat);
     legBack.scale.set(1, 0.5, 1.4);
     legBack.position.set(-0.15, 0.12, s * 0.18);
+    legBack.userData.basePos = legBack.position.clone();
+    legBack.userData.phase = (s < 0 ? 0 : Math.PI) + Math.PI / 2;
+    legs.push(legBack);
     g.add(legBack);
   }
   // Patas delanteras más finas
   for (const s of ['L', 'R']) {
     const legFront = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.3, 4), mat);
     legFront.position.set(s === 'L' ? -0.08 : 0.08, 0.15, 0.18);
+    legFront.userData.basePos = legFront.position.clone();
+    legFront.userData.phase = s === 'L' ? 0 : Math.PI;
+    legs.push(legFront);
     g.add(legFront);
   }
-  g.userData.legs = [
-    ...[{ x: -0.08, y: 0.15, z: 0.18 }, { x: 0.08, y: 0.15, z: 0.18 }],
-    ...[{ x: -0.15, y: 0.12, z: -0.18 }, { x: 0.15, y: 0.12, z: -0.18 }]
-  ];
+  g.userData.legs = legs;
 
   // Colita blanca
   const tail = new THREE.Mesh(new THREE.SphereGeometry(0.08, 5, 4), matW);
@@ -1323,6 +1329,14 @@ export function createFauna(scene, world) {
     lynx.position.set(x, world.getH(x, z), z);
     scene.add(lynx);
     list.push(new Animal(lynx, { speed: 1.6 + Math.random() * 0.5 }));
+  }
+
+  // Rendimiento: materiales compartidos entre animales y piezas fijas de cada uno fusionadas
+  // (las patas, la cola y las alas siguen sueltas para poder animarse)
+  const materialCache = new Map();
+  for (const a of list) {
+    shareMaterials(a.mesh, materialCache);
+    mergeStaticMeshes(a.mesh);
   }
 
   function update(dt, t, camera) {

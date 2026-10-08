@@ -87,8 +87,12 @@ export function createCameraController(camera, canvas, world) {
     }
   }, { passive: true });
 
-  // Keyboard
+  // Keyboard (ignorado mientras se escribe en formularios: "Carlos" no debe subir al 4×4)
+  const isTypingTarget = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  const appEl = document.getElementById('app');
   window.addEventListener('keydown', (e) => {
+    // Ni escribiendo, ni con la app aún tapada por el loading/intro (la tecla solo omite la carga)
+    if (isTypingTarget(e.target) || appEl?.classList.contains('hidden')) return;
     state.keys[e.code] = true;
     if (state.mode === 'orbit' && (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD')) {
       enterSafari();
@@ -104,16 +108,154 @@ export function createCameraController(camera, canvas, world) {
     }
   });
   window.addEventListener('keyup', (e) => { state.keys[e.code] = false; });
+  // Si la ventana pierde el foco con una tecla pulsada, no seguir andando solo
+  window.addEventListener('blur', () => { state.keys = {}; });
+
+  // ============ TOUCH CONTROLS (móvil / iPhone) ============
+  // Detectar si hay pantalla táctil
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  // Pointer lock solo con ratón: en móvil no existe o rechaza la promesa
+  const hasFinePointer = window.matchMedia?.('(any-pointer: fine)').matches ?? true;
+  let updateTouchUi = null;
+
+  // Tap largo en safari/car para simular look-around (drag dedo en pantalla)
+  let touchLookId = null;
+  let touchLookX = 0, touchLookY = 0;
+  canvas.addEventListener('touchstart', (e) => {
+    if (state.mode === 'safari' || state.mode === 'car') {
+      // Capturar primer touch para look-around
+      const t = e.touches[0];
+      touchLookId = t.identifier;
+      touchLookX = t.clientX;
+      touchLookY = t.clientY;
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (state.mode === 'safari' || state.mode === 'car') {
+      for (let i = 0; i < e.touches.length; i++) {
+        const t = e.touches[i];
+        if (t.identifier === touchLookId) {
+          const dx = t.clientX - touchLookX;
+          const dy = t.clientY - touchLookY;
+          touchLookX = t.clientX;
+          touchLookY = t.clientY;
+          if (state.mode === 'safari') {
+            state.safariYaw   -= dx * 0.005;
+            state.safariPitch -= dy * 0.005;
+            state.safariPitch = Math.max(-1.2, Math.min(0.6, state.safariPitch));
+          } else {
+            state.carYaw -= dx * 0.004;
+          }
+          break;
+        }
+      }
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  // Con touch-action:none Chrome manda estos eventos como no cancelables: preventDefault
+  // solo si se puede (evita avisos en consola; iOS antiguo sí lo necesita para no rebotar).
+  // Mantener pulsado tampoco debe abrir el menú contextual (Android)
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  canvas.addEventListener('touchend', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === touchLookId) {
+        touchLookId = null;
+      }
+    }
+  });
+
+  // Crear D-pad táctil solo en dispositivos táctiles
+  if (isTouch) {
+    const dpad = document.createElement('div');
+    dpad.className = 'touch-dpad';
+    dpad.innerHTML = `
+      <button class="dpad-btn dpad-up" data-key="KeyW" aria-label="Adelante"><span>▲</span></button>
+      <button class="dpad-btn dpad-left" data-key="KeyA" aria-label="Izquierda"><span>◀</span></button>
+      <button class="dpad-btn dpad-right" data-key="KeyD" aria-label="Derecha"><span>▶</span></button>
+      <button class="dpad-btn dpad-down" data-key="KeyS" aria-label="Atrás"><span>▼</span></button>
+      <button class="dpad-btn dpad-shift" data-key="Space" aria-label="Sprint">⚡</button>
+    `;
+    // Dentro de #app: así no asoma sobre el loading/intro (que ocultan #app)
+    const touchRoot = document.getElementById('app') || document.body;
+    touchRoot.appendChild(dpad);
+    dpad.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Soporte multi-touch: cada botón mantiene su estado
+    dpad.querySelectorAll('.dpad-btn').forEach(btn => {
+      const key = btn.dataset.key;
+      const press = (e) => {
+        if (e.cancelable) e.preventDefault();
+        state.keys[key] = true;
+        btn.classList.add('pressed');
+        // Primer press en safari → entrar
+        if (state.mode === 'orbit') enterSafari();
+        // Si está en safari y toca shift, sprint
+      };
+      const release = (e) => {
+        if (e.cancelable) e.preventDefault();
+        state.keys[key] = false;
+        btn.classList.remove('pressed');
+      };
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('touchend', release, { passive: false });
+      btn.addEventListener('touchcancel', release, { passive: false });
+      // Para desktop debugging
+      btn.addEventListener('mousedown', press);
+      btn.addEventListener('mouseup', release);
+      btn.addEventListener('mouseleave', release);
+    });
+
+    // Crear botón "salir" visible en touch
+    const exitBtn = document.createElement('button');
+    exitBtn.className = 'touch-exit';
+    exitBtn.innerHTML = '✕';
+    exitBtn.setAttribute('aria-label', 'Salir del modo safari');
+    exitBtn.addEventListener('click', () => exitToOrbit());
+    touchRoot.appendChild(exitBtn);
+    // (Sin botón táctil propio para el 4×4: "SUBIR AL 4×4" de la UI ya funciona con el dedo)
+
+    // Mostrar/ocultar controles según modo. El D-pad también se ve en orbital:
+    // es la única forma de bajar a pie en móvil (el primer toque entra en safari).
+    // Va por notifyModeChange y no por state.onModeChange, que main.js sobrescribe.
+    updateTouchUi = () => {
+      const isMovable = state.mode === 'safari' || state.mode === 'car';
+      dpad.classList.add('visible');
+      exitBtn.classList.toggle('visible', isMovable);
+    };
+    updateTouchUi();
+  }
+
+  function notifyModeChange(mode) {
+    if (state.onModeChange) state.onModeChange(mode);
+    if (updateTouchUi) updateTouchUi();
+  }
 
   const onLockChange = () => {
     state.isLocked = (document.pointerLockElement === canvas);
   };
   document.addEventListener('pointerlockchange', onLockChange);
 
+  function lockPointer() {
+    if (!hasFinePointer || !canvas.requestPointerLock) return;
+    try {
+      const p = canvas.requestPointerLock();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch {}
+  }
+
   function enterSafari() {
+    // Arrancar mirando hacia donde miraba la cámara orbital, sin salto de vista
+    const dir = camera.getWorldDirection(new THREE.Vector3());
+    state.safariYaw = Math.atan2(dir.x, dir.z);
+    state.safariPitch = -0.2;
     state.mode = 'safari';
-    canvas.requestPointerLock?.();
-    if (state.onModeChange) state.onModeChange('safari');
+    lockPointer();
+    notifyModeChange('safari');
   }
   function enterCar() {
     // Inicializa coche en el inicio del camino
@@ -125,21 +267,22 @@ export function createCameraController(camera, canvas, world) {
     }
     state.mode = 'car';
     state.carSpeed = 0;
-    canvas.requestPointerLock?.();
-    if (state.onModeChange) state.onModeChange('car');
+    lockPointer();
+    notifyModeChange('car');
   }
   function exitToOrbit() {
     state.mode = 'orbit';
     state.autoRotate = true;
-    document.exitPointerLock?.();
-    if (state.onModeChange) state.onModeChange('orbit');
+    if (document.pointerLockElement) document.exitPointerLock?.();
+    notifyModeChange('orbit');
   }
 
   // Click raycast
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
   canvas.addEventListener('click', (e) => {
-    if (state.mode !== 'orbit') return;
+    // Tras soltar el ratón con Esc, un click vuelve a capturarlo para mirar
+    if (state.mode !== 'orbit') { if (!state.isLocked) lockPointer(); return; }
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -265,8 +408,10 @@ export function createCameraController(camera, canvas, world) {
 
     // Cámara en primera persona dentro del coche
     // Posición: dentro del coche (un poco a la izquierda para sentir al conductor)
+    // Ojos por encima de la carrocería (macizo hasta y=1.8) y bajo el techo (y=2.36):
+    // a 1.85 la vista era el techo del capó
     const eyeOffset = new THREE.Vector3(
-      -0.55, 1.85, 0.4
+      -0.55, 2.2, 0.6
     ).applyAxisAngle(new THREE.Vector3(0, 1, 0), state.carYaw);
 
     const cp = Math.cos(0);
@@ -302,13 +447,13 @@ export function createCameraController(camera, canvas, world) {
     enterSafari,
     enterCar,
     exitToOrbit,
-    toggleMode,
     focusOn(pos, dist = 25) {
       state.mode = 'orbit';
       state.target.copy(pos);
       state.distance = dist;
       state.autoRotate = false;
-      if (state.onModeChange) state.onModeChange('orbit');
+      if (document.pointerLockElement) document.exitPointerLock?.();
+      notifyModeChange('orbit');
     },
     setOnPick(fn) { state.onPick = fn; },
     setOnModeChange(fn) { state.onModeChange = fn; },

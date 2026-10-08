@@ -21,7 +21,8 @@ export function buildSafariVehicle() {
     roughness: 0.1,
     metalness: 0.3,
     transparent: true,
-    opacity: 0.55
+    // Se conduce mirando a través del parabrisas: con 0.55 teñía media vista
+    opacity: 0.15
   });
   const wheelMat = new THREE.MeshStandardMaterial({
     color: 0x1a1410, roughness: 0.95
@@ -286,7 +287,8 @@ export function buildSafariVehicle() {
     seat.castShadow = true;
     interior.add(seat);
     const back = new THREE.Mesh(seatBackGeo, interiorMat);
-    back.position.set(s * 0.55, 1.55, 0.85);
+    // Detrás del asiento (el frente del 4×4 es +z): en z 0.85 quedaba delante de los ojos
+    back.position.set(s * 0.55, 1.55, 0.3);
     back.castShadow = true;
     interior.add(back);
   }

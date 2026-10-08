@@ -4,9 +4,14 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href="https://torozon.es/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#1b1410" />
     <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TOROZÓN" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
 
     <!-- Primary Meta Tags -->
     <title>TOROZÓN · Safari extremeño en la Estación de las Cabras</title>
@@ -114,6 +119,12 @@
       </div>
     </div>
 
+    <noscript>
+      <div style="position:fixed;inset:0;background:#1b1410;color:#e9b873;display:flex;align-items:center;justify-content:center;font-family:sans-serif;padding:24px;text-align:center;z-index:9999">
+        Esta web necesita JavaScript habilitado para funcionar.
+      </div>
+    </noscript>
+
     <!-- ============ INTRO OVERLAY ============ -->
     <div id="intro" class="intro hidden">
       <div class="intro__vignette"></div>
@@ -154,7 +165,7 @@
         <canvas id="scene"></canvas>
 
         <!-- ====== HERO VÍDEO OVERLAY (oculto por defecto) ====== -->
-        <video id="heroVideo" class="hero-video hidden" muted playsinline loop preload="none" poster="">
+        <video id="heroVideo" class="hero-video hidden" muted playsinline loop preload="none" poster="" x5-video-player-type="h5-page" webkit-playsinline>
             <source id="heroVideoSource" type="video/mp4">
         </video>
 
@@ -295,10 +306,10 @@
         <!-- Tooltip de fauna -->
         <div class="fauna-tooltip" id="faunaTip"></div>
 
-        <!-- ====== Panel GUÍA DEL SAFARI — preguntas a Hugo ====== -->
+        <!-- ====== Panel GUÍA DEL SAFARI — respuestas locales en ui.js ====== -->
         <div class="guide hidden" id="guide">
           <div class="guide__head">
-            <div class="guide__avatar">🐯</div>
+            <div class="guide__avatar">🤠</div>
             <div class="guide__id">
               <div class="guide__name">MANOLO · GUÍA LOCAL</div>
               <div class="guide__role">20 AÑOS EN EL TOROZÓN</div>
@@ -622,14 +633,30 @@
         </div>
       </main>
 
-      <!-- ============ SOUND TOGGLE EFFECT ============ -->
-      <div class="soundtrack" aria-hidden="true">
-        <audio id="ambient" loop preload="none">
-          <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" type="audio/wav" />
-        </audio>
-      </div>
-
     <script type="module" src="/src/main.js"></script>
+
+    <!-- ============================================================
+         CACHE KILL-SWITCH — fuerza recarga si la versión del bundle
+         cambió. Evita que un JS viejo se atasque en el loading.
+         ============================================================ -->
+    <script>
+      (function () {
+        var BUILD = '2026-10-07-r6';
+        try {
+          var last = localStorage.getItem('torozon_build');
+          if (last && last !== BUILD) {
+            console.warn('[torozon] build mismatch, recargando');
+            localStorage.setItem('torozon_build', BUILD);
+            if (window.caches) {
+              caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+            }
+            location.reload(true);
+            return;
+          }
+          localStorage.setItem('torozon_build', BUILD);
+        } catch (e) {}
+      })();
+    </script>
 
     <!-- ============================================================
          VIEW TOGGLE — alterna entre la escena 3D y los 3 vídeos hero
@@ -674,8 +701,10 @@
           b.addEventListener('click', () => setView(b.dataset.view));
         });
 
-        // Atajo: tecla 0 = volver a 3D, V = toggle vídeos
+        // Atajo: tecla 0 = volver a 3D (no mientras se escribe en un formulario)
         window.addEventListener('keydown', (e) => {
+          const t = e.target;
+          if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
           if (e.key === '0') setView('3d');
         });
       })();

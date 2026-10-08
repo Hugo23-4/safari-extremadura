@@ -5,9 +5,13 @@
 import * as THREE from 'three';
 import { SimplexNoise } from './noise.js';
 import { PALETTE } from './world.js';
+import { shareMaterials, mergeStaticMeshes } from './optimize.js';
 
-function makeEncina() {
-  const g = new THREE.Group();
+// Geometrías y materiales de la encina: idénticos en los 600 árboles (el ruido
+// del tronco es determinista), así que se crean una vez y se comparten.
+let encinaParts = null;
+function getEncinaParts() {
+  if (encinaParts) return encinaParts;
   const trunkGeo = new THREE.CylinderGeometry(0.18, 0.32, 2.2, 6, 4);
   const tPos = trunkGeo.attributes.position;
   for (let i = 0; i < tPos.count; i++) {
@@ -17,19 +21,6 @@ function makeEncina() {
     tPos.setZ(i, z + Math.sin(y * 3.7 + x) * 0.05);
   }
   trunkGeo.computeVertexNormals();
-  const trunkMat = new THREE.MeshStandardMaterial({
-    color: PALETTE.trunk,
-    roughness: 1
-  });
-  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-  trunk.position.y = 1.1;
-  trunk.castShadow = true;
-  trunk.receiveShadow = true;
-  g.add(trunk);
-
-  // Copa multi-esfera con hojas + hojas secas mezcladas
-  const leavesMat = new THREE.MeshStandardMaterial({ color: PALETTE.leaves, roughness: 0.95 });
-  const leavesDryMat = new THREE.MeshStandardMaterial({ color: PALETTE.leavesDry, roughness: 0.95 });
   const blobs = [
     { x: 0,   y: 2.6, z: 0,    r: 1.1 },
     { x: 0.6, y: 2.9, z: 0.2,  r: 0.9 },
@@ -38,10 +29,30 @@ function makeEncina() {
     { x: 0.0, y: 2.3, z: 0.5,  r: 0.7 },
     { x: 0.1, y: 2.4, z:-0.4,  r: 0.7 },
     { x:-0.3, y: 3.0, z: 0.4,  r: 0.65 }
-  ];
+  ].map(b => ({ ...b, geo: new THREE.SphereGeometry(b.r, 8, 6) }));
+  encinaParts = {
+    trunkGeo,
+    blobs,
+    trunkMat: new THREE.MeshStandardMaterial({ color: PALETTE.trunk, roughness: 1 }),
+    leavesMat: new THREE.MeshStandardMaterial({ color: PALETTE.leaves, roughness: 0.95 }),
+    leavesDryMat: new THREE.MeshStandardMaterial({ color: PALETTE.leavesDry, roughness: 0.95 })
+  };
+  return encinaParts;
+}
+
+function makeEncina() {
+  const g = new THREE.Group();
+  const { trunkGeo, blobs, trunkMat, leavesMat, leavesDryMat } = getEncinaParts();
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = 1.1;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  g.add(trunk);
+
+  // Copa multi-esfera con hojas + hojas secas mezcladas
   for (const b of blobs) {
     const s = new THREE.Mesh(
-      new THREE.SphereGeometry(b.r, 8, 6),
+      b.geo,
       Math.random() > 0.5 ? leavesMat : leavesDryMat
     );
     s.position.set(b.x, b.y, b.z);
@@ -164,7 +175,8 @@ function makeStoneFence(segments) {
 export function populateVegetation(scene, world) {
   const noise = new SimplexNoise(7);
   const group = new THREE.Group();
-  const { getH, SIZE } = world;
+  // world exporta `size` en minúscula: con `SIZE` todo salía NaN y no se plantaba nada
+  const { getH, size: SIZE } = world;
 
   const N_ENCINAS = 600;
   const N_ARBUSTOS = 900;
@@ -253,6 +265,9 @@ export function populateVegetation(scene, world) {
     group.add(fence);
   }
 
+  // Rendimiento: todo es estático → una malla por material en vez de cientos
+  shareMaterials(group);
+  mergeStaticMeshes(group);
   scene.add(group);
 
   // ============ HIERBA ALTA con InstancedMesh ============

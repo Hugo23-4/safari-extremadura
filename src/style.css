@@ -22,6 +22,41 @@
   --line:       rgba(233, 184, 115, 0.4);
   --line-soft:  rgba(233, 184, 115, 0.15);
   --grid:       rgba(233, 184, 115, 0.06);
+
+  /* iOS safe areas (notch, home indicator) */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+}
+
+/* iOS: prevent zoom on double-tap + mejor respuesta táctil */
+* {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS: scroll suave y momentum en paneles */
+.scrollable, .section, .guide__chat, .toast, .intro__logo, .sidenav {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* iOS: bloquear selección accidental en HUD y canvas */
+body, .hud, .controls, .species, .view-toggle, .actions, .car-launch {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Tap targets: mínimo 44x44px (Apple HIG) */
+button, .btn, .spe, .act, .view-toggle__btn, .sidenav button, .guide__suggest button, .exp__cta, .car-launch {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Inputs iOS: font-size >= 16px para evitar zoom auto */
+input, textarea, select, button {
+  font-size: 16px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -68,6 +103,18 @@ body { overflow: hidden; }
   background: linear-gradient(90deg, var(--terracota), var(--oro));
   width: 0%; transition: width 0.3s ease-out;
   box-shadow: 0 0 12px var(--oro);
+  /* Fallback CSS: si el JS no llega, la barra avanza sola */
+  animation: torozon-loading 3.5s ease-in-out forwards;
+}
+@keyframes torozon-loading {
+  0%   { width: 5%; }
+  30%  { width: 35%; }
+  60%  { width: 65%; }
+  90%  { width: 92%; }
+  100% { width: 100%; }
+}
+.loading__fill[style*="width:"] {
+  animation: none;
 }
 .loading__status {
   margin-top: 12px; font-size: 11px;
@@ -137,7 +184,8 @@ body { overflow: hidden; }
 
 /* ====== APP CANVAS ====== */
 .app { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.app canvas#scene { display: block; width: 100%; height: 100%; outline: none; }
+/* touch-action none: con "manipulation" el navegador cancela el arrastre orbital en móvil */
+.app canvas#scene { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
 .app::before {
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 5;
   background:
@@ -153,10 +201,10 @@ body { overflow: hidden; }
   position: absolute; z-index: 20; pointer-events: none;
 }
 .hud > * { pointer-events: auto; }
-.hud--tl { top: 24px; left: 24px; max-width: 380px; }
-.hud--tr { top: 24px; right: 24px; display: flex; gap: 16px; align-items: flex-start; }
-.hud--bl { bottom: 24px; left: 24px; display: flex; flex-direction: column; gap: 14px; }
-.hud--br { bottom: 24px; right: 24px; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+.hud--tl { top: calc(24px + var(--safe-top)); left: calc(24px + var(--safe-left)); max-width: 380px; }
+.hud--tr { top: calc(24px + var(--safe-top)); right: calc(24px + var(--safe-right)); display: flex; gap: 16px; align-items: flex-start; }
+.hud--bl { bottom: calc(24px + var(--safe-bottom)); left: calc(24px + var(--safe-left)); display: flex; flex-direction: column; gap: 14px; }
+.hud--br { bottom: calc(24px + var(--safe-bottom)); right: calc(24px + var(--safe-right)); display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
 
 /* ====== BRAND ====== */
 .brand { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
@@ -981,4 +1029,226 @@ kbd {
   .view-toggle__label {
     flex-basis: 100%;
   }
+}
+
+/* ============================================================
+   TOUCH D-PAD (móvil / iPhone)
+   Solo aparece en dispositivos táctiles, y solo cuando estás en safari/car
+   ============================================================ */
+.touch-dpad {
+  position: fixed;
+  bottom: calc(120px + var(--safe-bottom));
+  left: calc(20px + var(--safe-left));
+  width: 200px;
+  height: 200px;
+  z-index: 95;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  display: none;
+}
+.touch-dpad.visible { display: grid; }
+
+.dpad-btn {
+  position: absolute;
+  width: 60px; height: 60px;
+  background: rgba(27, 20, 16, 0.7);
+  border: 2px solid rgba(233, 184, 115, 0.5);
+  border-radius: 50%;
+  color: var(--oro);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  user-select: none;
+}
+.dpad-btn:active, .dpad-btn.pressed {
+  background: rgba(200, 115, 43, 0.85);
+  border-color: var(--oro);
+  color: var(--tinta);
+  transform: scale(0.92);
+  box-shadow: 0 0 18px rgba(233, 184, 115, 0.5);
+}
+.dpad-up    { top: 0;    left: 50%; transform: translateX(-50%); }
+.dpad-up:active, .dpad-up.pressed    { transform: translateX(-50%) scale(0.92); }
+.dpad-down  { bottom: 0; left: 50%; transform: translateX(-50%); }
+.dpad-down:active, .dpad-down.pressed { transform: translateX(-50%) scale(0.92); }
+.dpad-left  { left: 0;  top: 50%; transform: translateY(-50%); }
+.dpad-left:active, .dpad-left.pressed  { transform: translateY(-50%) scale(0.92); }
+.dpad-right { right: 0; top: 50%; transform: translateY(-50%); }
+.dpad-right:active, .dpad-right.pressed { transform: translateY(-50%) scale(0.92); }
+.dpad-shift { bottom: 0; right: -80px; font-size: 16px; }
+
+/* Botones flotantes extra para móvil */
+.touch-exit, .touch-car {
+  position: fixed;
+  z-index: 96;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--oro);
+  background: rgba(27, 20, 16, 0.85);
+  color: var(--oro);
+  font-size: 24px;
+  font-family: 'Anton', sans-serif;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-weight: bold;
+}
+.touch-exit.visible, .touch-car.visible {
+  display: flex;
+}
+.touch-exit {
+  top: calc(50% + var(--safe-top));
+  right: calc(20px + var(--safe-right));
+  transform: translateY(-50%);
+}
+.touch-car {
+  bottom: calc(340px + var(--safe-bottom));
+  right: calc(20px + var(--safe-right));
+  width: auto;
+  padding: 0 18px;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+.touch-exit:active, .touch-car:active {
+  background: var(--terracota);
+  color: var(--tinta);
+}
+
+@media (max-width: 480px) {
+  .touch-dpad { width: 170px; height: 170px; }
+  .dpad-btn { width: 50px; height: 50px; font-size: 18px; }
+  .dpad-shift { right: -70px; }
+}
+/* ============================================================
+   LAYOUT HUD SIN SOLAPES
+   Antes el selector de vista y "Subir al 4×4" tapaban la lista de
+   especies (05-09, CINE, ♪), la navegación caía encima del minimapa
+   y en móvil el selector tapaba el D-pad.
+   ============================================================ */
+/* Chrome Android: sin "tirar para recargar" al arrastrar sobre el HUD; iOS 16+: sin rebote.
+   iOS: no agrandar el texto al girar a horizontal */
+html, body { overscroll-behavior: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* iOS Safari: con user-select:none heredado del body no deja escribir en algunos campos */
+input, textarea, select { -webkit-user-select: text; user-select: text; }
+/* iOS: mantener pulsado el D-pad, el canvas o un botón no debe sacar el menú/lupa */
+#scene, .hud, .touch-dpad, .touch-exit, .view-toggle, .car-launch, .car-hud {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Navegación de secciones: bajo la tarjeta de misión, no sobre el minimapa */
+.sidenav { top: calc(222px + var(--safe-top)); transform: none; gap: 0; }
+.sidenav .sn { min-height: 34px; }
+/* En pantallas bajas la ayuda de teclado, la leyenda y el minimapa se recortan */
+@media (max-height: 1000px) { .hud--bl .controls { display: none; } }
+@media (max-height: 740px) { .minimap__legend { display: none; } }
+@media (max-height: 700px) { .minimap canvas { width: 160px; height: 160px; } }
+
+/* "Subir al 4×4" y selector de vista: abajo al centro, fuera de la columna de especies */
+.car-launch { right: auto; left: 50%; transform: translateX(-50%); bottom: calc(24px + var(--safe-bottom)); }
+.car-launch:hover { transform: translateX(-50%) translateY(-4px) scale(1.05); }
+.view-toggle {
+  right: auto; left: 50%; transform: translateX(-50%);
+  bottom: calc(150px + var(--safe-bottom));
+  flex-direction: row; flex-wrap: wrap; justify-content: center;
+}
+.view-toggle__btn { min-width: 0; padding: 6px 12px; }
+.view-toggle__btn:hover { transform: none; }
+
+/* Modo coche: el guía ocupa la columna derecha (sin especies) y deja ver CINE/♪ */
+.app[data-mode="car"] .species { display: none; }
+.guide { bottom: calc(84px + var(--safe-bottom)); }
+
+/* Con una sección abierta, los controles flotantes no tapan el contenido */
+.app.has-section .view-toggle,
+.app.has-section .car-launch,
+.app.has-section .touch-dpad,
+.app.has-section .touch-exit { display: none !important; }
+
+/* ====== COMPACTO: móvil (vertical u horizontal) y tablet ====== */
+@media (max-width: 900px), (max-height: 600px) {
+  .mission, .hud--tr, .brand__sub { display: none; }
+  /* Minimapa pequeño arriba a la derecha */
+  .hud--bl { top: calc(12px + var(--safe-top)); right: calc(12px + var(--safe-right)); bottom: auto; left: auto; }
+  .hud--bl .controls, .minimap__legend { display: none; }
+  .minimap { padding: 4px; }
+  .minimap canvas { width: 96px; height: 96px; }
+  /* Navegación: fila de puntos bajo la marca (botones de 44 px para el dedo) */
+  .sidenav { top: calc(84px + var(--safe-top)); left: calc(12px + var(--safe-left)); flex-direction: row; gap: 4px; }
+  .sidenav .sn { min-height: 44px; justify-content: center; }
+  .sn__lbl { display: none; }
+  /* Especies: fila deslizable abajo; CINE y ♪ encima, a la derecha */
+  .hud--br { left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right)); bottom: calc(8px + var(--safe-bottom)); align-items: stretch; gap: 6px; }
+  .species { flex-direction: row; overflow-x: auto; padding: 6px; scrollbar-width: none; touch-action: pan-x; }
+  .species::-webkit-scrollbar { display: none; }
+  .spe { min-width: 0; flex: 0 0 auto; padding: 6px 10px; gap: 8px; }
+  .spe:hover { transform: none; }
+  .spe__num { display: none; }
+  .actions { position: absolute; right: 0; bottom: calc(100% + 6px); }
+  .app[data-mode="car"] .hud--br, .app[data-mode="car"] .view-toggle { display: none; }
+  /* Selector de vista: fila compacta encima de las especies, a la izquierda */
+  .view-toggle {
+    left: calc(8px + var(--safe-left)); right: auto; transform: none;
+    bottom: calc(64px + var(--safe-bottom));
+    flex-wrap: nowrap; padding: 4px; gap: 4px;
+  }
+  .view-toggle__btn { flex: 0 0 auto; padding: 5px 8px; font-size: 11px; letter-spacing: 1px; gap: 4px; }
+  .view-toggle__btn span { font-size: 13px; }
+  .view-toggle__label { display: none; }
+  /* 4×4 compacto a la derecha, sobre CINE/♪ */
+  .car-launch { left: auto; right: calc(8px + var(--safe-right)); transform: none; bottom: calc(126px + var(--safe-bottom)); flex-direction: row; padding: 8px 14px; font-size: 12px; letter-spacing: 2px; }
+  .car-launch:hover { transform: none; }
+  .car-launch span:first-child { font-size: 18px; }
+  /* D-pad encima de las filas inferiores; ✕ bajo el minimapa (en coche, abajo a la derecha) */
+  .touch-dpad { bottom: calc(126px + var(--safe-bottom)); left: calc(12px + var(--safe-left)); }
+  .touch-exit { top: calc(140px + var(--safe-top)); right: calc(12px + var(--safe-right)); transform: none; }
+  .app[data-mode="car"] .touch-exit { top: auto; bottom: calc(126px + var(--safe-bottom)); }
+  /* Coche: velocímetro compacto abajo */
+  .car-hud { bottom: calc(8px + var(--safe-bottom)); gap: 14px; padding: 8px 14px; max-width: calc(100vw - 16px); }
+  .car-hud__bars { display: none; }
+  .car-hud__speed { padding-right: 12px; }
+  .car-hud__speed-num { font-size: 28px; min-width: 44px; }
+  .car-hud__trip { padding-left: 12px; }
+  /* Guía arriba para no tapar el D-pad (que acelera y gira en el 4×4) */
+  .guide {
+    top: calc(12px + var(--safe-top)); bottom: auto;
+    left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right));
+    /* sin llegar al D-pad (≈300 px inferiores) en pantallas bajas tipo iPhone SE */
+    width: auto; max-width: none; max-height: min(55vh, calc(100vh - 320px)); max-height: min(55dvh, calc(100dvh - 320px)); overflow-y: auto;
+  }
+  .guide__chat { max-height: 26vh; }
+  /* GPU móvil: el desenfoque de fondo se recalcula cada frame sobre el 3D */
+  .hud *, .view-toggle, .car-launch, .car-hud, .guide, .touch-dpad .dpad-btn, .touch-exit, .toast {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+/* Móvil vertical estrecho: el botón ⚡ del D-pad sobresale a la derecha */
+@media (max-width: 480px) {
+  .car-launch { bottom: calc(190px + var(--safe-bottom)); }
+}
+/* Móvil en horizontal: poca altura */
+@media (max-height: 600px) {
+  .sidenav { top: calc(14px + var(--safe-top)); left: 50%; transform: translateX(-50%); }
+  .touch-dpad { width: 150px; height: 150px; }
+  .dpad-btn { width: 46px; height: 46px; font-size: 16px; }
+  .dpad-shift { right: -62px; }
+  .touch-exit { top: calc(12px + var(--safe-top)); right: calc(130px + var(--safe-right)); }
+  .guide { left: auto; width: 380px; max-height: calc(100vh - 200px); max-height: calc(100dvh - 200px); }
 }
