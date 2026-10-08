@@ -100,7 +100,7 @@
           { "@type": "Offer", "name": "La Berrea", "price": "180", "priceCurrency": "EUR" },
           { "@type": "Offer", "name": "Fauna al Completo", "price": "240", "priceCurrency": "EUR" },
           { "@type": "Offer", "name": "Búfalos & Arroyo", "price": "140", "priceCurrency": "EUR" },
-          { "@type": "Offer", "name": "Silver Bullet 24h", "price": "1400", "priceCurrency": "EUR" }
+          { "@type": "Offer", "name": "Dehesa 24 h", "price": "1400", "priceCurrency": "EUR" }
         ]
       },
       "sameAs": []
@@ -115,7 +115,6 @@
         <div class="loading__sub">— safari extremeño —</div>
         <div class="loading__bar"><div class="loading__fill" id="loadFill"></div></div>
         <div class="loading__status" id="loadStatus">Inicializando dehesa…</div>
-        <div class="loading__hint">Pulsa cualquier tecla para omitir</div>
       </div>
     </div>
 
@@ -143,19 +142,20 @@
             <path d="M55 145 L100 95 L145 145" fill="none" stroke="url(#crestG)" stroke-width="2"/>
             <!-- silhouette ciervo -->
             <path d="M100 70 q3 -10 6 -12 q-2 -3 -5 -3 q-4 0 -5 4 q-3 -4 -7 -2 q3 -2 5 -6 q-5 1 -7 6 q-3 -3 -7 -1 q4 0 6 4 q-4 0 -6 4 q5 -2 10 1 q5 -3 10 -5 z" fill="url(#crestG)" transform="translate(0,30)"/>
-            <text x="100" y="178" text-anchor="middle" fill="url(#crestG)" font-family="Anton" font-size="12" letter-spacing="3">ESTACIÓN DE LAS CABRAS · CÁCERES</text>
+            <!-- Leyenda siguiendo el aro inferior: en línea recta (≈320 px) no cabía en los 200 del sello -->
+            <path id="crestArc" d="M 11 100 A 89 89 0 0 0 189 100" fill="none"/>
+            <text fill="url(#crestG)" font-family="Anton" font-size="9" letter-spacing="2"><textPath href="#crestArc" startOffset="50%" text-anchor="middle">ESTACIÓN DE LAS CABRAS · CÁCERES</textPath></text>
           </svg>
         </div>
         <h1 class="intro__title">TOROZÓN</h1>
         <p class="intro__tagline">Un safari en la dehesa extremeña</p>
         <div class="intro__cta">
-          <button class="btn btn--ghost" id="introSkip" aria-label="Saltar pantalla de bienvenida">SKIP</button>
+          <button class="btn btn--ghost" id="introSkip" aria-label="Saltar pantalla de bienvenida">SALTAR</button>
           <button class="btn btn--primary" id="introStart">
             <span class="btn__icon">▶</span>
             <span>INICIAR SAFARI</span>
           </button>
         </div>
-        <div class="intro__scroll">desliza para comenzar ▾</div>
       </div>
     </div>
 
@@ -244,7 +244,7 @@
               <kbd>␣</kbd><span>sprint</span>
               <kbd>🖱</kbd><span>mirar</span>
               <kbd>Esc</kbd><span>soltar cámara</span>
-              <kbd>1–5</kbd><span>especies</span>
+              <kbd>1–9</kbd><span>especies</span>
             </div>
           </div>
         </div>
@@ -344,7 +344,7 @@
         <section class="section section--especies" id="sec-especies" data-section="especies">
           <div class="section__inner">
             <div class="section__kicker">02 · FAUNA</div>
-            <h2 class="section__title">OCHO ESPECIES.<br/>UN SOLO TERRITORIO.</h2>
+            <h2 class="section__title">NUEVE ESPECIES.<br/>UN SOLO TERRITORIO.</h2>
             <p class="section__lead">En las 800 hectáreas del Torozón convive la densidad de fauna cinegética más alta de Extremadura. Identifica, sigue y fotografía cada especie en su hábitat.</p>
             <div class="species-grid">
               <article class="scard" data-species="ciervo">
@@ -436,7 +436,7 @@
                 <div class="scard__img"><svg viewBox="0 0 200 160"><defs><linearGradient id="lynxG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a07a4a"/><stop offset="1" stop-color="#5a3818"/></linearGradient></defs><path d="M30 110 Q60 80 130 90 Q170 100 175 110 Q160 125 100 130 Q60 130 30 110 Z" fill="url(#lynxG)"/><circle cx="60" cy="105" r="3" fill="#3a2010"/><circle cx="90" cy="100" r="3" fill="#3a2010"/><circle cx="140" cy="95" r="3" fill="#3a2010"/><circle cx="160" cy="105" r="3" fill="#3a2010"/><path d="M150 80 L155 65 L160 80 Z" fill="#3a2010"/><path d="M165 80 L170 60 L175 80 Z" fill="#3a2010"/><circle cx="170" cy="95" r="2" fill="#1a1410"/><circle cx="155" cy="95" r="2" fill="#e8e0b8"/></svg></div>
                 <h3>Lince ibérico</h3>
                 <p class="scard__sub"><i>Lynx pardinus</i></p>
-                <p>El fantasma de la dehesa. Solitario, nocturno, ojos amarillos y pinceles en las orejas. Si lo ves, cuéntalo: quedan 400 en España.</p>
+                <p>El fantasma de la dehesa. Solitario, nocturno, ojos amarillos y pinceles en las orejas. Si lo ves, cuéntalo: en toda la península apenas pasan de 2.000.</p>
                 <ul class="scard__stats">
                   <li><b>12–20 kg</b><span>peso</span></li>
                   <li><b>13 años</b><span>longevidad</span></li>
@@ -517,9 +517,9 @@
                     <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
                   </div>
                 </div>
-                <h3>SILVER BULLET</h3>
+                <h3>DEHESA 24 H</h3>
                 <div class="exp__when">todo el año · 24 h</div>
-                <p>Dos jornadas completas. Pernocta en el cortijo, vehículo en exclusiva, guía privado. La experiencia total.</p>
+                <p>Atardecer, noche y amanecer en la finca, con pernocta en el cortijo. Vehículo en exclusiva y guía privado. La experiencia total.</p>
                 <div class="exp__row"><span>duración</span><b>24 h</b></div>
                 <div class="exp__row"><span>plazas</span><b>4 máx.</b></div>
                 <div class="exp__row"><span>precio</span><b>1.400 € · pax</b></div>
@@ -553,13 +553,13 @@
               <div class="tile" style="--c1:#c8732b;--c2:#7a3a18">
                 <div class="tile__icon">🌾</div>
                 <h3>Pastizal</h3>
-                <p>126 ha · dehesa abierta. El territorio del jabalí y los rebecos.</p>
+                <p>126 ha · dehesa abierta. El territorio del jabalí y la liebre.</p>
               </div>
             </div>
             <div class="stats-strip">
               <div class="stat"><b>800</b><span>hectáreas</span></div>
-              <div class="stat"><b>1.200 m</b><span>altitud</span></div>
-              <div class="stat"><b>21°C</b><span>media anual</span></div>
+              <div class="stat"><b>4</b><span>misiones</span></div>
+              <div class="stat"><b>6</b><span>plazas por grupo</span></div>
               <div class="stat"><b>+300</b><span>especies</span></div>
             </div>
           </div>
@@ -594,7 +594,7 @@
                       <option>EXP·01 · La Berrea</option>
                       <option selected>EXP·02 · Fauna al completo</option>
                       <option>EXP·03 · Búfalos &amp; Arroyo</option>
-                      <option>EXP·04 · Silver Bullet</option>
+                      <option>EXP·04 · Dehesa 24 h</option>
                     </select>
                 </label>
               </div>

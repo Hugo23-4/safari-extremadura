@@ -215,8 +215,6 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   document.getElementById('introSkip')?.addEventListener('click', startApp);
   document.getElementById('introStart')?.addEventListener('click', startApp);
   loadingEl.addEventListener('click', skipLoading);
-  // "Pulsa cualquier tecla para omitir" (antes solo funcionaba el click)
-  window.addEventListener('keydown', skipLoading);
 
   function startApp() {
     introEl.classList.add('hidden');
@@ -295,7 +293,8 @@ export function createUI({ fauna, camera, world, scene, cameraCtrl }) {
   // ============ CAR MODE BUTTON ============
   document.getElementById('carLaunch')?.addEventListener('click', () => {
     cameraCtrl.enterCar();
-    toast('🚙 4×4 ACTIVADO', 'W acelerar · A/D girar · Esc salir');
+    const touch = window.matchMedia?.('(pointer: coarse)').matches;
+    toast('🚙 4×4 ACTIVADO', touch ? '▲ acelerar · ◀ ▶ girar · ✕ salir' : 'W acelerar · A/D girar · Esc salir');
   });
 
   // HUD coche

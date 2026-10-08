@@ -120,10 +120,6 @@ body { overflow: hidden; }
   margin-top: 12px; font-size: 11px;
   color: var(--oro); letter-spacing: 3px; text-transform: uppercase;
 }
-.loading__hint {
-  margin-top: 22px; font-size: 10px;
-  color: var(--hueso-d); opacity: 0.6; letter-spacing: 2px;
-}
 
 /* ====== INTRO OVERLAY ====== */
 .intro {
@@ -158,11 +154,6 @@ body { overflow: hidden; }
   margin-bottom: 32px;
 }
 .intro__cta { display: flex; gap: 14px; justify-content: center; }
-.intro__scroll {
-  margin-top: 32px; font-size: 10px; color: var(--oro);
-  letter-spacing: 3px; opacity: 0.7;
-  animation: pulseDown 2s ease-in-out infinite;
-}
 
 /* ====== BUTTONS ====== */
 .btn {
